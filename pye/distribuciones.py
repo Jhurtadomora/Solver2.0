@@ -88,38 +88,7 @@ CONTINUAS = {
         f=r"f(x) = \frac{1}{b-a},\quad a\le x\le b",
         desc="Todos los valores del intervalo [a, b] son igualmente probables.",
     ),
-    "Gamma": dict(
-        params=[("alpha", "Forma α", float, 2.0, 1e-9, 1e6), ("beta", "Escala β", float, 2.0, 1e-9, 1e9)],
-        build=lambda q: stats.gamma(q["alpha"], scale=q["beta"]),
-        r=lambda q: ("gamma", f"shape = {q['alpha']}, scale = {q['beta']}"),
-        E=r"E(X) = \alpha\beta", V=r"Var(X) = \alpha\beta^2",
-        f=r"f(x) = \frac{x^{\alpha-1}e^{-x/\beta}}{\beta^\alpha\Gamma(\alpha)}",
-        desc="Tiempo hasta el α-ésimo evento; generaliza la exponencial.",
-    ),
-    "t de Student": dict(
-        params=[("gl", "Grados de libertad", float, 10.0, 1e-9, 1e9)],
-        build=lambda q: stats.t(q["gl"]),
-        r=lambda q: ("t", f"df = {q['gl']}"),
-        E=r"E(T) = 0\;(gl>1)", V=r"Var(T) = \frac{gl}{gl-2}\;(gl>2)",
-        f=r"T = \frac{\bar X-\mu}{S/\sqrt{n}} \sim t_{n-1}",
-        desc="Se usa para inferencia sobre la media con σ desconocida.",
-    ),
-    "Chi-cuadrado": dict(
-        params=[("gl", "Grados de libertad", float, 5.0, 1e-9, 1e9)],
-        build=lambda q: stats.chi2(q["gl"]),
-        r=lambda q: ("chisq", f"df = {q['gl']}"),
-        E=r"E(X) = gl", V=r"Var(X) = 2\,gl",
-        f=r"\frac{(n-1)S^2}{\sigma^2} \sim \chi^2_{n-1}",
-        desc="Se usa para inferencia sobre la varianza y pruebas de independencia.",
-    ),
-    "F de Fisher": dict(
-        params=[("d1", "gl numerador", float, 5.0, 1e-9, 1e9), ("d2", "gl denominador", float, 10.0, 1e-9, 1e9)],
-        build=lambda q: stats.f(q["d1"], q["d2"]),
-        r=lambda q: ("f", f"df1 = {q['d1']}, df2 = {q['d2']}"),
-        E=r"E(F) = \frac{d_2}{d_2-2}", V=r"Var(F)=\frac{2d_2^2(d_1+d_2-2)}{d_1(d_2-2)^2(d_2-4)}",
-        f=r"F = \frac{S_1^2/\sigma_1^2}{S_2^2/\sigma_2^2}",
-        desc="Cociente de varianzas; se usa en ANOVA y regresión.",
-    ),
+   
 }
 
 
