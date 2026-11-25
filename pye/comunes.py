@@ -203,6 +203,72 @@ def mostrar_plotly(fig, key=None, **kwargs):
     return st.plotly_chart(fig, key=key, **kwargs)
 
 
+def glosario(filas, titulo="📘 Fórmulas y significado de cada símbolo", expandido=True):
+    """filas: lista de (símbolo LaTeX, nombre, qué significa, fórmula LaTeX)."""
+    with st.expander(titulo, expanded=expandido):
+        md = "| Símbolo | Nombre | ¿Qué significa? | Fórmula |\n|---|---|---|---|\n"
+        for simbolo, nombre, significado, formula in filas:
+            md += f"| ${simbolo}$ | {nombre} | {significado} | ${formula}$ |\n"
+        st.markdown(md)
+
+
+def diagrama_cajas(datos, nombre, key):
+    """Diagrama de cajas y bigotes con media, cuartiles y valores atípicos (regla 1.5·RIC)."""
+    import plotly.graph_objects as go
+
+    x = np.asarray(datos, dtype=float)
+    q1, q2, q3 = np.percentile(x, [25, 50, 75])
+    ric = q3 - q1
+    li, ls = q1 - 1.5 * ric, q3 + 1.5 * ric
+    media = float(x.mean())
+    atipicos = np.sort(x[(x < li) | (x > ls)])
+    normales = x[(x >= li) & (x <= ls)]
+    bigote_inf, bigote_sup = (normales.min(), normales.max()) if len(normales) else (q1, q3)
+
+    fig = go.Figure()
+    fig.add_trace(go.Box(x=x, name=nombre, boxpoints="outliers", boxmean=True, quartilemethod="linear",
+                         marker=dict(color=COLOR_A, size=10, symbol="circle-open", line=dict(width=2)),
+                         line=dict(color=COLOR_PRIMARIO), fillcolor="rgba(56,189,248,0.25)", orientation="h",
+                         hoverinfo="x"))
+    fig.add_trace(go.Scatter(x=[media], y=[nombre], mode="markers+text", text=[f"x̄ = {fmt_num(media, 2)}"],
+                             textposition="top center", marker=dict(symbol="x", size=14, color=COLOR_ACENTO),
+                             name="Media", hovertemplate="Media = %{x:.4f}<extra></extra>"))
+    for valor, txt in [(li, "límite inferior"), (ls, "límite superior")]:
+        fig.add_vline(x=valor, line_dash="dot", line_color=COLOR_GRIS, annotation_text=f"{txt} {fmt_num(valor, 2)}",
+                      annotation_position="top")
+    for v in atipicos:
+        fig.add_annotation(x=v, y=nombre, text=f"{fmt_num(v, 2)}", showarrow=True, arrowhead=0, ay=-30,
+                           font=dict(color=COLOR_A))
+    fig.update_layout(title=f"Diagrama de cajas y bigotes de {nombre}", height=350, showlegend=False, xaxis_title=nombre,
+                      margin=dict(t=90))
+    mostrar_plotly(fig, key=key)
+
+    c = st.columns(3)
+    c[0].metric("Q₁ (primer cuartil)", fmt_num(q1, 2))
+    c[1].metric("Mediana Q₂", fmt_num(q2, 2))
+    c[2].metric("Q₃ (tercer cuartil)", fmt_num(q3, 2))
+    c = st.columns(3)
+    c[0].metric("Media x̄ (datos originales)", fmt_num(media, 2))
+    c[1].metric("RIC = Q₃ − Q₁", fmt_num(ric, 2))
+    c[2].metric("Valores atípicos", str(len(atipicos)))
+    if len(atipicos):
+        st.warning("Valores atípicos: " + ", ".join(fmt_num(v) for v in atipicos))
+    else:
+        st.success("No hay valores atípicos: todos los datos están entre los límites.")
+    st.caption("El diagrama de cajas se construye con los datos originales (sin agrupar). "
+               "En el gráfico: la caja va de Q₁ a Q₃, la línea interna es la mediana, la línea punteada dentro de la caja "
+               "es la media (también marcada con ✕) y los círculos rojos son los valores atípicos.")
+    with st.expander("📐 ¿De dónde sale cada valor del diagrama?", expanded=False):
+        st.latex(rf"Q_1 = P_{{25}} = {fmt_num(q1)},\quad Q_2 = Me = {fmt_num(q2)},\quad Q_3 = P_{{75}} = {fmt_num(q3)}")
+        st.latex(rf"RIC = Q_3 - Q_1 = {fmt_num(q3)} - {fmt_num(q1)} = {fmt_num(ric)}")
+        st.latex(rf"L_{{inf}} = Q_1 - 1.5\cdot RIC = {fmt_num(q1)} - 1.5({fmt_num(ric)}) = {fmt_num(li)}")
+        st.latex(rf"L_{{sup}} = Q_3 + 1.5\cdot RIC = {fmt_num(q3)} + 1.5({fmt_num(ric)}) = {fmt_num(ls)}")
+        st.latex(rf"\text{{Bigotes: del menor al mayor dato dentro de los límites}} = [{fmt_num(bigote_inf)},\; {fmt_num(bigote_sup)}]")
+        st.markdown("Un dato es **atípico** si es menor que el límite inferior o mayor que el límite superior. "
+                    "Los cuartiles se calculan con interpolación lineal: posición = p·(n − 1) en los datos ordenados.")
+    return {"q1": q1, "q2": q2, "q3": q3, "ric": ric, "li": li, "ls": ls, "media": media, "atipicos": atipicos}
+
+
 def entrada_texto_num(label, default, key, minimo=None, maximo=None, ayuda=None):
     """Campo de texto que acepta 0,5 / 1/3 / 30% y devuelve float."""
     txt = st.text_input(label, str(default), key=key, help=ayuda)

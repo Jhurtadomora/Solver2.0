@@ -7,7 +7,52 @@ import pandas as pd
 import streamlit as st
 
 from .arboles import construir_arbol, dibujar_arbol
-from .comunes import codigo_r, reporte
+from .comunes import codigo_r, glosario, reporte
+
+SIMBOLOS_COMUNES = [
+    (r"n!", "Factorial de n", "Producto de todos los enteros de 1 hasta n. Por definición 0! = 1.", r"n! = n(n-1)(n-2)\cdots 2\cdot 1"),
+]
+
+EXPLICACION = {
+    "Principio multiplicativo": (
+        "Cuando un experimento se hace en varias etapas y cada etapa tiene cierto número de opciones independientes.",
+        "Un menú con 3 entradas, 2 platos fuertes y 4 postres permite 3·2·4 = 24 almuerzos distintos.",
+        [(r"n_j", "Opciones de la etapa j", "Cuántas formas hay de completar la etapa j.", r"N = n_1\cdot n_2\cdots n_k"),
+         (r"k", "Número de etapas", "Cuántas decisiones sucesivas se toman.", r"\text{—}")]),
+    "Permutación (todos los elementos): n!": (
+        "Cuando se ordenan TODOS los elementos y el orden importa (ninguno se repite).",
+        "Las formas de ordenar 5 libros en un estante: 5! = 120.",
+        [(r"n", "Elementos", "Cantidad de elementos distintos que se ordenan.", r"P_n = n!")]),
+    "Permutación / variación sin repetición: P(n, r)": (
+        "Cuando se eligen r de n elementos, IMPORTA el orden y no se pueden repetir.",
+        "Elegir presidente, secretario y tesorero entre 10 personas: P(10,3) = 720.",
+        [(r"n", "Elementos disponibles", "Total de elementos entre los que se elige.", r"\text{—}"),
+         (r"r", "Elementos elegidos", "Cuántos se toman (posiciones a llenar).", r"P(n,r) = \frac{n!}{(n-r)!}")]),
+    "Variación con repetición: nʳ": (
+        "Cuando se llenan r posiciones, IMPORTA el orden y cada elemento se PUEDE repetir.",
+        "Contraseñas de 4 dígitos (0–9): 10⁴ = 10.000.",
+        [(r"n", "Opciones por posición", "Cuántos valores puede tomar cada posición.", r"\text{—}"),
+         (r"r", "Posiciones", "Longitud del arreglo.", r"VR(n,r) = n^r")]),
+    "Combinación sin repetición: C(n, r)": (
+        "Cuando se eligen r de n elementos y NO importa el orden (grupos, comités), sin repetir.",
+        "Formar un comité de 3 personas entre 10: C(10,3) = 120.",
+        [(r"n", "Elementos disponibles", "Total de elementos.", r"\text{—}"),
+         (r"r", "Elementos elegidos", "Tamaño del grupo.", r"C(n,r) = \binom{n}{r} = \frac{n!}{r!(n-r)!}")]),
+    "Combinación con repetición: CR(n, r)": (
+        "Cuando se eligen r elementos de n tipos, NO importa el orden y los tipos SE PUEDEN repetir.",
+        "Comprar 3 helados escogiendo entre 5 sabores (se puede repetir sabor): CR(5,3) = C(7,3) = 35.",
+        [(r"n", "Tipos disponibles", "Cuántas clases distintas hay.", r"\text{—}"),
+         (r"r", "Elementos elegidos", "Cuántos se toman en total.", r"CR(n,r) = \binom{n+r-1}{r}")]),
+    "Permutación con elementos repetidos: n!/(n₁!n₂!…)": (
+        "Cuando se ordenan n elementos pero algunos son idénticos entre sí.",
+        "Anagramas de CASA: 4!/(2!·1!·1!) = 12, porque hay dos letras A iguales.",
+        [(r"n", "Total de elementos", "Suma de todas las repeticiones.", r"n = n_1 + n_2 + \cdots + n_k"),
+         (r"n_i", "Repeticiones del tipo i", "Cuántas veces aparece cada elemento idéntico.", r"\frac{n!}{n_1!\,n_2!\cdots n_k!}")]),
+    "Permutación circular: (n − 1)!": (
+        "Cuando se ordenan n elementos alrededor de un círculo (no hay primer lugar; solo cuenta la posición relativa).",
+        "Sentar 6 personas en una mesa redonda: (6−1)! = 120.",
+        [(r"n", "Elementos", "Cantidad de elementos en el círculo.", r"P_c(n) = (n-1)!")]),
+}
 
 TEMAS = [
     "Principio multiplicativo",
@@ -24,6 +69,9 @@ TEMAS = [
 def render_conteo():
     tema = st.selectbox("Técnica", TEMAS, key="cnt_tema")
     st.caption("💡 ¿Importa el orden? → permutación/variación. ¿No importa? → combinación. ¿Se pueden repetir? → 'con repetición'.")
+    cuando, ejemplo, filas = EXPLICACION[tema]
+    st.info(f"**¿Cuándo se usa?** {cuando}\n\n**Ejemplo:** {ejemplo}")
+    glosario(filas + SIMBOLOS_COMUNES)
 
     if tema == "Principio multiplicativo":
         txt = st.text_input("Número de opciones en cada etapa (separadas por coma)", "3, 2, 4", key="cnt_mult")

@@ -49,6 +49,68 @@ def grafico_region_rechazo(estad, tipo, alpha, dist="z", gl=None, key="rr", gl2=
         st.caption(f"(No se pudo dibujar la región de rechazo: {e})")
 
 
+def explicar_prueba(parametro, valor0, tipo, nombre_est, formula, sustitucion, estad, crit, p_value, alpha,
+                    simbolos=(), dist="z", gl=None):
+    """Fórmulas y explicación paso a paso de una prueba de hipótesis.
+
+    parametro/valor0/formula/sustitucion son cadenas LaTeX; simbolos: (símbolo, nombre, significado, fórmula) extra."""
+    op = {"Bilateral": r"\neq", "Cola izquierda": "<", "Cola derecha": ">"}[tipo]
+    est = nombre_est
+    with st.expander("📐 Fórmulas y explicación paso a paso", expanded=True):
+        st.markdown("**Paso 1 · Plantear las hipótesis**")
+        st.latex(rf"H_0: {parametro} = {valor0} \qquad\qquad H_1: {parametro} {op} {valor0}")
+        st.caption("H₀ (hipótesis nula) es lo que se supone cierto; H₁ (alternativa) es lo que se quiere probar. "
+                   f"Prueba {tipo.lower()}: {'el signo ≠ reparte α en las dos colas' if tipo == 'Bilateral' else 'toda α va en una sola cola'}.")
+        st.markdown(f"**Paso 2 · Calcular el estadístico de prueba {est}**")
+        st.latex(formula)
+        st.latex(sustitucion + rf" = {estad:.4f}")
+        st.markdown("**Paso 3 · Valor crítico y región de rechazo**")
+        def cuantil(q_simb, q_num):
+            """Z_{q} para la normal; t_{q, gl} para la t (un solo subíndice)."""
+            if dist == "z":
+                return rf"Z_{{{q_simb}}} = Z_{{{q_num}}}"
+            return rf"t_{{{q_simb},\,{fmt_num(gl, 2)}}} = t_{{{q_num},\,{fmt_num(gl, 2)}}}"
+
+        if tipo == "Bilateral":
+            q_txt = cuantil(r"1-\alpha/2", f"{1 - alpha / 2:.4f}")
+            st.latex(rf"{est}_{{crít}} = {q_txt} = \pm{abs(crit):.4f}")
+            st.latex(rf"\text{{Se rechaza }}H_0 \text{{ si }} |{est}| > {abs(crit):.4f}")
+        elif tipo == "Cola izquierda":
+            q_txt = cuantil(r"\alpha", f"{alpha:.4f}")
+            st.latex(rf"{est}_{{crít}} = {q_txt} = {crit:.4f}")
+            st.latex(rf"\text{{Se rechaza }}H_0 \text{{ si }} {est} < {crit:.4f}")
+        else:
+            q_txt = cuantil(r"1-\alpha", f"{1 - alpha:.4f}")
+            st.latex(rf"{est}_{{crít}} = {q_txt} = {crit:.4f}")
+            st.latex(rf"\text{{Se rechaza }}H_0 \text{{ si }} {est} > {crit:.4f}")
+        st.markdown("**Paso 4 · p-valor**")
+        D = "Z" if dist == "z" else "T"
+        if tipo == "Bilateral":
+            st.latex(rf"p = 2\,P({D} > |{est}|) = 2\,P({D} > {abs(estad):.4f}) = {p_value:.6f}")
+        elif tipo == "Cola izquierda":
+            st.latex(rf"p = P({D} < {est}) = P({D} < {estad:.4f}) = {p_value:.6f}")
+        else:
+            st.latex(rf"p = P({D} > {est}) = P({D} > {estad:.4f}) = {p_value:.6f}")
+        st.markdown("**Paso 5 · Decisión**")
+        rechaza = p_value < alpha
+        rel = "<" if rechaza else r"\geq"
+        st.latex(rf"p = {p_value:.6f} \;{rel}\; \alpha = {alpha:g} \;\Rightarrow\; "
+                 + (r"\text{Se rechaza } H_0" if rechaza else r"\text{No se rechaza } H_0"))
+        st.caption("Las dos reglas son equivalentes: comparar el estadístico con el valor crítico, o el p-valor con α.")
+        md = "| Símbolo | Nombre | ¿Qué significa? |\n|---|---|---|\n"
+        filas = list(simbolos) + [
+            (r"\alpha", "Nivel de significancia", "Probabilidad máxima aceptada de rechazar H₀ siendo verdadera (error tipo I)."),
+            (rf"{est}", "Estadístico de prueba", "Cuántos errores estándar se aleja el valor muestral del valor de H₀."),
+            (rf"{est}_{{crít}}", "Valor crítico", "Frontera de la región de rechazo, sale de la tabla con α."),
+            (r"p", "p-valor", "Probabilidad de obtener un resultado igual o más extremo si H₀ fuera cierta."),
+        ]
+        if gl is not None:
+            filas.append((r"gl", "Grados de libertad", "Parámetro de la distribución t; depende del tamaño de muestra."))
+        for s, n, d in filas:
+            md += f"| ${s}$ | {n} | {d} |\n"
+        st.markdown(md)
+
+
 def grafico_intervalo(li, ls, centro, etiqueta="IC", key="gic"):
     fig = go.Figure()
     fig.add_scatter(x=[li, ls], y=[0, 0], mode="lines+markers", line=dict(color=COLOR_PRIMARIO, width=8), marker=dict(size=14),
@@ -218,7 +280,24 @@ def render_prueba_varianza():
         p = D.cdf(chi)
     else:
         p = D.sf(chi)
+    op = {"Bilateral": r"\neq", "Cola izquierda": "<", "Cola derecha": ">"}[tipo]
+    st.markdown("**Paso 1 · Hipótesis**")
+    st.latex(rf"H_0: \sigma^2 = {fmt_num(s0)} \qquad H_1: \sigma^2 {op} {fmt_num(s0)}")
+    st.markdown("**Paso 2 · Estadístico de prueba**")
     st.latex(rf"\chi^2 = \frac{{(n-1)s^2}}{{\sigma_0^2}} = \frac{{{gl}\cdot{fmt_num(s2)}}}{{{fmt_num(s0)}}} = {chi:.4f},\qquad gl = {gl}")
+    st.markdown("**Paso 3 · Valores críticos y p-valor**")
+    if tipo == "Bilateral":
+        st.latex(rf"\chi^2_{{\alpha/2}} = {D.ppf(alpha / 2):.4f},\quad \chi^2_{{1-\alpha/2}} = {D.ppf(1 - alpha / 2):.4f},\qquad p = 2\min\{{P(\chi^2<{chi:.3f}),\,P(\chi^2>{chi:.3f})\}}")
+    elif tipo == "Cola izquierda":
+        st.latex(rf"\chi^2_{{\alpha}} = {D.ppf(alpha):.4f},\qquad p = P(\chi^2 < {chi:.3f})")
+    else:
+        st.latex(rf"\chi^2_{{1-\alpha}} = {D.ppf(1 - alpha):.4f},\qquad p = P(\chi^2 > {chi:.3f})")
+    st.markdown("| Símbolo | Nombre | ¿Qué significa? |\n|---|---|---|\n"
+                "| $\\sigma_0^2$ | Varianza de referencia | Varianza que se supone cierta en H₀. |\n"
+                "| $s^2$ | Varianza muestral | Varianza calculada con la muestra. |\n"
+                "| $n-1$ | Grados de libertad | Parámetro de la distribución χ². |\n"
+                "| $\\chi^2$ | Estadístico chi-cuadrado | Compara s² con σ₀²; si se aleja mucho de n−1 hay evidencia contra H₀. |\n"
+                "| $p$ | p-valor | Probabilidad de un resultado igual o más extremo si H₀ fuera cierta. |")
     m = st.columns(3)
     m[0].metric("χ² calculado", f"{chi:.4f}")
     m[1].metric("p-valor", f"{p:.6f}")

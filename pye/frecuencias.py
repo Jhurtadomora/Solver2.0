@@ -6,8 +6,32 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from .comunes import (COLOR_ACENTO, COLOR_OK, COLOR_PRIMARIO, a_float, codigo_r, descargas_tabla,
-                      fmt_num, leer_columna, mostrar_plotly, r_vector, reporte, separar_tokens)
+from .comunes import (COLOR_ACENTO, COLOR_OK, COLOR_PRIMARIO, a_float, codigo_r, descargas_tabla, diagrama_cajas,
+                      fmt_num, glosario, leer_columna, mostrar_plotly, r_vector, reporte, separar_tokens)
+
+GLOSARIO_BASICO = [
+    (r"n", "Tamaño de la muestra", "Cantidad total de datos.", r"n = \sum f_i"),
+    (r"f_i", "Frecuencia absoluta", "Cuántas veces aparece el valor (o cuántos datos caen en la clase) i.", r"f_i = \#\{\text{datos en } i\}"),
+    (r"F_i", "Frecuencia absoluta acumulada", "Cuántos datos hay desde la primera fila hasta la fila i.", r"F_i = f_1 + f_2 + \cdots + f_i"),
+    (r"h_i", "Frecuencia relativa", "Proporción de datos en la fila i (entre 0 y 1).", r"h_i = \frac{f_i}{n}"),
+    (r"H_i", "Frecuencia relativa acumulada", "Proporción de datos desde la primera fila hasta la fila i.", r"H_i = \frac{F_i}{n} = h_1 + \cdots + h_i"),
+    (r"\%h_i", "Frecuencia porcentual", "Porcentaje de datos en la fila i.", r"\%h_i = h_i \times 100"),
+]
+
+
+def _calculo_fila(df, n, col_x, key, agrupada=False, A=None):
+    """Muestra con números de dónde sale cada columna para la fila elegida."""
+    filas = list(range(len(df)))
+    i = st.selectbox("Ver el cálculo de la fila", filas, format_func=lambda j: f"Fila {j + 1}: {df[col_x].iloc[j]}", key=key)
+    f_i, F_i = int(df["f_i"].iloc[i]), int(df["F_i"].iloc[i])
+    F_prev = int(df["F_i"].iloc[i - 1]) if i > 0 else 0
+    if agrupada:
+        li, ls = df["Lᵢ"].iloc[i], df["Lₛ"].iloc[i]
+        st.latex(rf"x_{{{i + 1}}} = \frac{{L_i + L_s}}{{2}} = \frac{{{fmt_num(li)} + {fmt_num(ls)}}}{{2}} = {fmt_num((li + ls) / 2)}"
+                 rf"\qquad A = L_s - L_i = {fmt_num(ls - li)}")
+    st.latex(rf"f_{{{i + 1}}} = {f_i}\qquad F_{{{i + 1}}} = F_{{{i}}} + f_{{{i + 1}}} = {F_prev} + {f_i} = {F_i}")
+    st.latex(rf"h_{{{i + 1}}} = \frac{{f_{{{i + 1}}}}}{{n}} = \frac{{{f_i}}}{{{n}}} = {f_i / n:.4f}\qquad "
+             rf"H_{{{i + 1}}} = \frac{{F_{{{i + 1}}}}}{{n}} = \frac{{{F_i}}}{{{n}}} = {F_i / n:.4f}\qquad \%h_{{{i + 1}}} = {f_i / n * 100:.2f}\%")
 
 EJEMPLO = ("23, 25, 31, 28, 35, 41, 29, 33, 37, 26, 30, 45, 38, 27, 32, 34, 29, 36, 40, 31, "
            "28, 33, 39, 42, 30, 35, 27, 31, 34, 38")
@@ -87,6 +111,11 @@ def _tabla_no_agrupada(datos, nombre):
     st.dataframe(vista.style.format(precision=4, na_rep=""), hide_index=True)
     st.caption("f_i: frecuencia absoluta · F_i: absoluta acumulada · h_i: relativa · H_i: relativa acumulada")
     descargas_tabla(df, f"tabla_frecuencias_{nombre}", "tf_na")
+    glosario([(r"x_i", "Valor de la variable", "Cada valor distinto que toma la variable, ordenado de menor a mayor.", r"x_1 < x_2 < \cdots")]
+             + GLOSARIO_BASICO
+             + [(r"x_i f_i", "Producto valor × frecuencia", "Se usa para calcular la media.", r"\bar{x} = \frac{\sum x_i f_i}{n}"),
+                (r"x_i^2 f_i", "Producto valor² × frecuencia", "Se usa para calcular la varianza.", r"s^2 = \frac{\sum x_i^2 f_i - n\bar{x}^2}{n-1}")])
+    _calculo_fila(df, n, "x_i", "tf_na_fila")
 
     media = df["x_i·f_i"].sum() / n
     var_m = (df["x_i²·f_i"].sum() - n * media ** 2) / (n - 1)
@@ -112,7 +141,9 @@ def _tabla_no_agrupada(datos, nombre):
     medida = st.radio("Frecuencia a graficar", ["Absoluta (f_i)", "Relativa (h_i)", "Porcentaje"], horizontal=True, key="tf_na_med")
     col_y = {"Absoluta (f_i)": "f_i", "Relativa (h_i)": "h_i", "Porcentaje": "% h_i"}[medida]
     col_acum = {"f_i": "F_i", "h_i": "H_i", "% h_i": "% H_i"}[col_y]
-    t1, t2, t3 = st.tabs(["Barras", "Acumulada (escalonada)", "Torta"])
+    t1, t2, t3, t4 = st.tabs(["Barras", "Acumulada (escalonada)", "Torta", "Cajas y bigotes"])
+    with t4:
+        diagrama_cajas(datos, nombre, "tf_na_box")
     with t1:
         fig = go.Figure(go.Bar(x=df["x_i"], y=df[col_y], marker_color=COLOR_PRIMARIO,
                                text=[fmt_num(v) for v in df[col_y]], textposition="outside",
@@ -173,17 +204,22 @@ def _tabla_agrupada(datos, nombre):
     xmin, xmax = x.min(), x.max()
     R = xmax - xmin
 
-    st.markdown("### ⚙️ Construcción de las clases")
-    c1, c2, c3, c4 = st.columns(4)
-    regla = c1.selectbox("Número de clases k", ["Regla de Sturges", "Raíz cuadrada de n", "Manual"], key="tf_regla")
+    st.markdown("### ⚙️ Construcción de los intervalos")
     k_sturges = 1 + 3.322 * math.log10(n)
     k_raiz = math.sqrt(n)
-    if regla == "Regla de Sturges":
+    c0, c0b = st.columns([1.3, 1])
+    regla = c0.radio("¿Cuántos intervalos (clases) quieres?",
+                     ["Lo indico yo", "Regla de Sturges", "Raíz cuadrada de n"], horizontal=True, key="tf_regla")
+    if regla == "Lo indico yo":
+        k = int(c0b.number_input("Cantidad de intervalos k", 2, 50, max(2, math.ceil(k_sturges)), step=1, key="tf_k_manual",
+                                 help="Escribe cuántos intervalos quieres en la tabla."))
+    elif regla == "Regla de Sturges":
         k = math.ceil(k_sturges)
-    elif regla == "Raíz cuadrada de n":
-        k = math.ceil(k_raiz)
     else:
-        k = int(c1.number_input("k", 2, 50, max(2, math.ceil(k_sturges)), key="tf_k_manual"))
+        k = math.ceil(k_raiz)
+    c0b.caption(f"Sugerencias: Sturges → k ≈ {math.ceil(k_sturges)} · √n → k ≈ {math.ceil(k_raiz)}")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Intervalos k", k)
     dec = int(c2.number_input("Decimales de la amplitud", 0, 4, 0 if np.all(x == np.round(x)) else 1, key="tf_dec",
                               help="La amplitud se redondea hacia ARRIBA con estos decimales."))
     A_cruda = R / k if R > 0 else 1
@@ -229,6 +265,17 @@ def _tabla_agrupada(datos, nombre):
     vista = _agregar_totales(df, ["f_i", "h_i", "% h_i", "x_i·f_i", "(x_i−x̄)²·f_i"], "Intervalo")
     st.dataframe(vista.drop(columns=["Lᵢ", "Lₛ"]).style.format(precision=4, na_rep=""), hide_index=True)
     descargas_tabla(df, f"tabla_agrupada_{nombre}", "tf_ag")
+    glosario([
+        (r"k", "Número de intervalos (clases)", "En cuántos grupos se dividen los datos. Lo puedes indicar tú o usar Sturges.", r"k = 1 + 3.322\log_{10} n"),
+        (r"R", "Rango", "Distancia entre el dato mayor y el menor.", r"R = x_{max} - x_{min}"),
+        (r"A", "Amplitud", "Ancho de cada intervalo (se redondea hacia arriba).", r"A = \frac{R}{k}"),
+        (r"L_i,\;L_s", "Límites inferior y superior", "Inicio y fin de cada intervalo; el siguiente empieza donde termina el anterior.", r"L_s = L_i + A"),
+        (r"x_i", "Marca de clase", "Punto medio del intervalo; representa a todos sus datos.", r"x_i = \frac{L_i + L_s}{2}"),
+    ] + GLOSARIO_BASICO + [
+        (r"x_i f_i", "Marca × frecuencia", "Se usa para la media agrupada.", r"\bar{x} = \frac{\sum x_i f_i}{n}"),
+        (r"(x_i-\bar{x})^2 f_i", "Desviación² × frecuencia", "Se usa para la varianza agrupada.", r"s^2 = \frac{\sum (x_i-\bar{x})^2 f_i}{n-1}"),
+    ])
+    _calculo_fila(df, n, "Intervalo", "tf_ag_fila", agrupada=True)
 
     # Indicadores agrupados
     tipo_var = st.radio("Varianza", ["Muestral (n−1)", "Poblacional (N)"], horizontal=True, key="tf_ag_var")
@@ -278,7 +325,9 @@ def _tabla_agrupada(datos, nombre):
     st.markdown("### 📊 Gráficos")
     medida = st.radio("Escala", ["Absoluta", "Relativa", "Porcentaje"], horizontal=True, key="tf_ag_med")
     factor = {"Absoluta": 1, "Relativa": 1 / n, "Porcentaje": 100 / n}[medida]
-    t1, t2 = st.tabs(["Histograma + polígono", "Ojiva"])
+    t1, t2, t3 = st.tabs(["Histograma + polígono", "Ojiva", "Cajas y bigotes"])
+    with t3:
+        diagrama_cajas(x, nombre, "tf_ag_box")
     with t1:
         mostrar_pol = st.checkbox("Mostrar polígono de frecuencias", True, key="tf_pol")
         fig = go.Figure(go.Bar(x=marcas, y=f * factor, width=[A] * k_real, marker_color=COLOR_PRIMARIO,
@@ -349,6 +398,13 @@ def _tabla_cualitativa(datos, nombre):
     st.markdown("### 📋 Tabla de frecuencias")
     st.dataframe(_agregar_totales(df, ["f_i", "h_i", "% h_i"], "Categoría").style.format(precision=4, na_rep=""), hide_index=True)
     descargas_tabla(df, f"tabla_cualitativa_{nombre}", "tf_cu")
+    glosario([(r"\text{Categoría}", "Modalidad", "Cada respuesta o clase distinta de la variable cualitativa.", r"\text{—}")]
+             + [g for g in GLOSARIO_BASICO if ordinal or orden == "Mayor a menor frecuencia" or g[0] not in ("F_i", "H_i")]
+             + [(r"Mo", "Moda", "Categoría con mayor frecuencia absoluta (la única medida de tendencia para variables nominales).",
+                 r"Mo = \arg\max f_i")])
+    st.caption("F_i y H_i solo tienen sentido si las categorías tienen un orden (variable ordinal) o si se ordenan por frecuencia (Pareto).")
+    if "F_i" in df.columns:
+        _calculo_fila(df, n, "Categoría", "tf_cu_fila")
     moda = df.loc[df["f_i"] == df["f_i"].max(), "Categoría"].tolist()
     c = st.columns(3)
     c[0].metric("Moda", ", ".join(moda[:3]))
