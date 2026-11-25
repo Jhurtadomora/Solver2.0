@@ -14,7 +14,8 @@ try:
 except Exception:
     SCIPY_OK = False
 
-from pye import arboles, conteo, distribuciones, frecuencias, inferencia, probabilidad, regresion, variables
+from pye import arboles, conteo, distribuciones, frecuencias, inferencia, probabilidad, variables
+from pye.comunes import diagrama_cajas, glosario
 
 # ============================================================
 # CONFIGURACIÓN GENERAL
@@ -459,7 +460,6 @@ MENU = [
     "Intervalos de confianza",
     "Pruebas de hipótesis",
     "Correlación",
-    "Regresión Lineal",
     "Base de datos",
     "Fórmulas",
     "Historial de Cálculos"
@@ -494,7 +494,7 @@ if categoria == "Inicio":
         )
     with c2:
         st.markdown(
-            "<div class='metric-card'><h3>📘 Módulo Estadística Aplicada</h3><p>Distribuciones de muestreo y TLC, intervalos de confianza, pruebas de hipótesis con región de rechazo, correlación, regresión simple y múltiple.</p></div>",
+            "<div class='metric-card'><h3>📘 Módulo Estadística Aplicada</h3><p>Distribuciones de muestreo y TLC, intervalos de confianza, pruebas de hipótesis con fórmulas y región de rechazo, correlación, base de datos y fórmulas.</p></div>",
             unsafe_allow_html=True
         )
 
@@ -813,6 +813,20 @@ elif categoria == "Pruebas de hipótesis":
             else:
                 st.warning("Decisión: No se rechaza H₀.")
             inferencia.grafico_region_rechazo(estad, tipo, alpha, "z" if tema == "Media con Z" else "t", None if tema == "Media con Z" else n - 1, key="ph_media_rr")
+            es_z = tema == "Media con Z"
+            desv_s = r"\sigma" if es_z else "s"
+            inferencia.explicar_prueba(
+                r"\mu", f"{mu0:g}", tipo, nombre,
+                rf"{nombre} = \frac{{\bar{{x}} - \mu_0}}{{{desv_s}/\sqrt{{n}}}}",
+                rf"{nombre} = \frac{{{xbar:g} - {mu0:g}}}{{{desv:g}/\sqrt{{{n}}}}} = \frac{{{xbar - mu0:.4f}}}{{{se:.4f}}}",
+                estad, crit, p_value, alpha,
+                simbolos=[(r"\mu_0", "Valor de referencia", "Media que se supone cierta en H₀."),
+                          (r"\bar{x}", "Media muestral", "Promedio de la muestra."),
+                          (desv_s, "Desviación estándar " + ("poblacional" if es_z else "muestral"),
+                           "Se usa Z si σ es conocida (o n grande) y t si solo se conoce s."),
+                          (r"n", "Tamaño de muestra", "Cantidad de datos de la muestra."),
+                          (r"SE", "Error estándar", rf"Variabilidad de la media muestral: {desv_s}/√n = {se:.4f}.")],
+                dist="z" if es_z else "t", gl=None if es_z else n - 1)
             h1 = (
                 "la media poblacional es diferente al valor de referencia"
                 if tipo == "Bilateral"
@@ -857,6 +871,15 @@ elif categoria == "Pruebas de hipótesis":
             else:
                 st.warning("Decisión: No se rechaza H₀.")
             inferencia.grafico_region_rechazo(z, tipo, alpha, "z", key="ph_prop_rr")
+            inferencia.explicar_prueba(
+                "p", f"{p0:g}", tipo, "z",
+                r"z = \frac{\hat{p} - p_0}{\sqrt{p_0(1-p_0)/n}}",
+                rf"z = \frac{{{phat:.4f} - {p0:g}}}{{\sqrt{{{p0:g}(1-{p0:g})/{n}}}}} = \frac{{{phat - p0:.4f}}}{{{se:.4f}}}",
+                z, crit, p_value, alpha,
+                simbolos=[(r"p_0", "Proporción de referencia", "Proporción que se supone cierta en H₀."),
+                          (r"\hat{p}", "Proporción muestral", "Éxitos / tamaño de muestra (x/n)."),
+                          (r"n", "Tamaño de muestra", "Cantidad de observaciones."),
+                          (r"SE", "Error estándar", f"Se calcula con p₀ porque se supone H₀ cierta: {se:.4f}.")])
             h1 = (
                 "la proporción poblacional es diferente al valor de referencia"
                 if tipo == "Bilateral"
@@ -927,6 +950,26 @@ elif categoria == "Pruebas de hipótesis":
                     inferencia.grafico_region_rechazo(estad, tipo, alpha, "z", key="ph_difm_rr")
                 elif gl > 0:
                     inferencia.grafico_region_rechazo(estad, tipo, alpha, "t", gl, key="ph_difm_rr")
+                if metodo == "t pooled varianzas iguales":
+                    formula_dm = r"t = \frac{(\bar{x}_1-\bar{x}_2)-d_0}{s_p\sqrt{\frac{1}{n_1}+\frac{1}{n_2}}},\qquad s_p^2 = \frac{(n_1-1)s_1^2+(n_2-1)s_2^2}{n_1+n_2-2}"
+                    extra_dm = [(r"s_p", "Desviación combinada (pooled)", f"Promedio ponderado de s₁ y s₂ cuando las varianzas se suponen iguales: {sp:.4f}."),
+                                (r"gl", "Grados de libertad", f"n₁ + n₂ − 2 = {gl}.")]
+                elif metodo == "t Welch varianzas diferentes":
+                    formula_dm = r"t = \frac{(\bar{x}_1-\bar{x}_2)-d_0}{\sqrt{\frac{s_1^2}{n_1}+\frac{s_2^2}{n_2}}},\qquad gl \approx \frac{\left(\frac{s_1^2}{n_1}+\frac{s_2^2}{n_2}\right)^2}{\frac{(s_1^2/n_1)^2}{n_1-1}+\frac{(s_2^2/n_2)^2}{n_2-1}}"
+                    extra_dm = [(r"gl", "Grados de libertad de Welch", f"Aproximación cuando las varianzas son distintas: {gl:.4f}.")]
+                else:
+                    formula_dm = r"z = \frac{(\bar{x}_1-\bar{x}_2)-d_0}{\sqrt{\frac{s_1^2}{n_1}+\frac{s_2^2}{n_2}}}"
+                    extra_dm = []
+                inferencia.explicar_prueba(
+                    r"\mu_1-\mu_2", f"{d0:g}", tipo, nombre, formula_dm,
+                    rf"{nombre} = \frac{{({xbar1:g}-{xbar2:g})-{d0:g}}}{{{se:.4f}}}",
+                    estad, crit, p_value, alpha,
+                    simbolos=[(r"\bar{x}_1,\;\bar{x}_2", "Medias muestrales", "Promedio de cada grupo."),
+                              (r"s_1,\;s_2", "Desviaciones muestrales", "Dispersión de cada grupo."),
+                              (r"n_1,\;n_2", "Tamaños de muestra", "Datos de cada grupo."),
+                              (r"d_0", "Diferencia hipotética", "Diferencia μ₁ − μ₂ que supone H₀ (normalmente 0)."),
+                              (r"SE", "Error estándar de la diferencia", f"{se:.4f}")] + extra_dm,
+                    dist="z" if nombre == "z" else "t", gl=None if nombre == "z" else gl)
                 h1 = (
                     "existe diferencia entre las medias poblacionales"
                     if tipo == "Bilateral"
@@ -969,6 +1012,17 @@ elif categoria == "Pruebas de hipótesis":
                         st.warning("Decisión: No se rechaza H₀.")
                     if gl > 0:
                         inferencia.grafico_region_rechazo(estad, tipo, alpha, "t", gl, key="ph_par_rr")
+                        inferencia.explicar_prueba(
+                            r"\mu_d", f"{d0:g}", tipo, "t",
+                            r"t = \frac{\bar{d} - d_0}{s_d/\sqrt{n}},\qquad d_i = \text{después}_i - \text{antes}_i",
+                            rf"t = \frac{{{dbar:.4f} - {d0:g}}}{{{sd:.4f}/\sqrt{{{n}}}}} = \frac{{{dbar - d0:.4f}}}{{{se:.4f}}}",
+                            estad, crit, p_value, alpha,
+                            simbolos=[(r"d_i", "Diferencia de cada par", "Después − antes para cada individuo."),
+                                      (r"\bar{d}", "Promedio de diferencias", f"Σdᵢ / n = {dbar:.4f}."),
+                                      (r"s_d", "Desviación de las diferencias", f"{sd:.4f}."),
+                                      (r"\mu_d", "Diferencia media poblacional", "Lo que se prueba; H₀ supone que vale d₀."),
+                                      (r"n", "Número de pares", f"{n}.")],
+                            dist="t", gl=gl)
                     h1 = (
                         "existe diferencia significativa entre las mediciones pareadas"
                         if tipo == "Bilateral"
@@ -1015,6 +1069,15 @@ elif categoria == "Pruebas de hipótesis":
             else:
                 st.warning("Decisión: No se rechaza H₀.")
             inferencia.grafico_region_rechazo(z, tipo, alpha, "z", key="ph_difp_rr")
+            inferencia.explicar_prueba(
+                "p_1-p_2", f"{d0:g}", tipo, "z",
+                r"z = \frac{(\hat{p}_1-\hat{p}_2)-d_0}{\sqrt{\hat{p}\hat{q}\left(\frac{1}{n_1}+\frac{1}{n_2}\right)}},\qquad \hat{p} = \frac{x_1+x_2}{n_1+n_2}",
+                rf"z = \frac{{({p1:.4f}-{p2:.4f})-{d0:g}}}{{\sqrt{{{p_pool:.4f}\cdot{q_pool:.4f}\left(\frac{{1}}{{{n1}}}+\frac{{1}}{{{n2}}}\right)}}}} = \frac{{{p1 - p2 - d0:.4f}}}{{{se:.4f}}}",
+                z, crit, p_value, alpha,
+                simbolos=[(r"\hat{p}_1,\;\hat{p}_2", "Proporciones muestrales", "xᵢ / nᵢ en cada grupo."),
+                          (r"\hat{p}", "Proporción combinada", f"Todos los éxitos / todas las observaciones = {p_pool:.4f}."),
+                          (r"\hat{q}", "Complemento", f"1 − p̂ = {q_pool:.4f}."),
+                          (r"d_0", "Diferencia hipotética", "Diferencia p₁ − p₂ que supone H₀ (normalmente 0).")])
             h1 = (
                 "existe diferencia entre las proporciones poblacionales"
                 if tipo == "Bilateral"
@@ -1284,6 +1347,16 @@ elif categoria == "Fórmulas":
     st.latex(r"P(X=k)=\frac{\binom{K}{k}\binom{N-K}{n-k}}{\binom{N}{n}},\quad P(X=k)=(1-p)^{k-1}p,\quad P(X=k)=\binom{k-1}{r-1}p^r(1-p)^{k-r}")
 
     st.markdown("## 10. Tablas de frecuencia")
+    st.markdown(
+        "| Símbolo | Nombre | ¿Qué significa? | Fórmula |\n|---|---|---|---|\n"
+        "| $f_i$ | Frecuencia absoluta | Cuántos datos tiene la fila (valor o intervalo) i | $f_i$ |\n"
+        "| $F_i$ | Frecuencia absoluta acumulada | Datos desde la primera fila hasta la i | $F_i = f_1 + \\cdots + f_i$ |\n"
+        "| $h_i$ | Frecuencia relativa | Proporción de datos en la fila i | $h_i = f_i / n$ |\n"
+        "| $H_i$ | Frecuencia relativa acumulada | Proporción acumulada hasta la fila i | $H_i = F_i / n$ |\n"
+        "| $x_i$ | Marca de clase | Punto medio del intervalo | $x_i = (L_i + L_s)/2$ |\n"
+        "| $k$ | Número de intervalos | Cantidad de clases (la indica el usuario o Sturges) | $k = 1 + 3.322\\log_{10} n$ |\n"
+        "| $A$ | Amplitud | Ancho de cada intervalo | $A = R / k$ |"
+    )
     st.latex(r"h_i=\frac{f_i}{n},\quad F_i=\sum_{j\le i} f_j,\quad H_i=\frac{F_i}{n}")
     st.latex(r"k = 1 + 3.322\log_{10} n,\qquad A=\frac{R}{k}")
     st.latex(r"\bar{x}=\frac{\sum x_i f_i}{n},\quad Me = L_i+\frac{n/2-F_{i-1}}{f_i}A,\quad Mo = L_i+\frac{d_1}{d_1+d_2}A")
@@ -1304,9 +1377,6 @@ elif categoria == "Fórmulas":
     st.latex(r"IC_{\sigma^2}=\left(\frac{(n-1)s^2}{\chi^2_{\alpha/2}},\frac{(n-1)s^2}{\chi^2_{1-\alpha/2}}\right),\qquad \chi^2=\frac{(n-1)s^2}{\sigma_0^2}")
     st.latex(r"n=\left(\frac{z_{\alpha/2}\sigma}{E}\right)^2,\qquad n=\frac{z_{\alpha/2}^2p(1-p)}{E^2}")
 
-    st.markdown("## 14. Regresión lineal")
-    st.latex(r"\hat\beta_1=\frac{S_{xy}}{S_{xx}},\quad \hat\beta_0=\bar y-\hat\beta_1\bar x,\quad R^2=\frac{SSR}{SST}=1-\frac{SSE}{SST}")
-    st.latex(r"\hat{\boldsymbol\beta}=(X^TX)^{-1}X^T\mathbf{y},\qquad R^2_{aj}=1-(1-R^2)\frac{n-1}{n-k-1},\qquad F=\frac{SSR/k}{SSE/(n-k-1)}")
 
 # ============================================================
 # MÓDULOS ACADÉMICOS ADICIONALES
@@ -1418,6 +1488,22 @@ elif categoria == "Indicadores Estadísticos":
                 st.metric("Rango", f"{rango:.4f}")
                 st.metric("N (Total)", f"{len(datos)}")
 
+            den_txt = "n-1" if t_disp == "Muestra" else "N"
+            glosario([
+                (r"\bar{x}", "Media", "Promedio de los datos.", rf"\bar{{x}} = \frac{{\sum x_i}}{{n}} = {media:.4f}"),
+                (r"Me", "Mediana", "Valor central de los datos ordenados (deja 50% a cada lado).", rf"Me = x_{{(n+1)/2}} = {mediana:.4f}"),
+                (r"Mo", "Moda", "Valor que más se repite.", r"Mo = \text{valor con mayor frecuencia}"),
+                (r"s^2", "Varianza", "Promedio de las desviaciones al cuadrado respecto a la media.",
+                 rf"s^2 = \frac{{\sum (x_i-\bar{{x}})^2}}{{{den_txt}}} = {varianza:.4f}"),
+                (r"s", "Desviación estándar", "Dispersión típica de los datos, en las mismas unidades de la variable.", rf"s = \sqrt{{s^2}} = {desv:.4f}"),
+                (r"CV", "Coeficiente de variación", "Dispersión relativa a la media (en %).", rf"CV = \frac{{s}}{{\bar{{x}}}}\times 100 = {cv:.2f}\%"),
+                (r"R", "Rango", "Diferencia entre el dato mayor y el menor.", rf"R = x_{{max}} - x_{{min}} = {rango:.4f}"),
+                (r"P_k", "Percentil k", "Valor que deja el k% de los datos por debajo (Q₁ = P₂₅, Q₃ = P₇₅).", r"\text{posición} = \frac{k}{100}(n-1)"),
+                (r"RIC", "Rango intercuartílico", "Ancho del 50% central de los datos.", rf"RIC = Q_3 - Q_1 = {iqr:.4f}"),
+                (r"As", "Asimetría de Pearson", "Indica hacia qué lado se alarga la distribución (0 = simétrica).", r"As = \frac{3(\bar{x}-Mo)}{s}"),
+                (r"K", "Curtosis (exceso)", "Qué tan apuntada es la distribución comparada con la normal (0 = normal).", r"K = \frac{\sum (x_i-\bar{x})^4}{n\,s^4} - 3"),
+            ], titulo="📘 Fórmulas y significado de cada indicador", expandido=False)
+
             # 3. VISUALIZACIÓN DE GRÁFICOS CUANTITATIVOS
             st.markdown("---")
             st.subheader("🖼️ Visualización Gráfica")
@@ -1456,16 +1542,21 @@ elif categoria == "Indicadores Estadísticos":
                 st.pyplot(fig_pie)
                 plt.close(fig_pie)
 
-            # Diagrama de Cajas (Box Plot)
+            # Diagrama de Cajas (Box Plot): media y valores atípicos
             with g4:
                 st.markdown("#### Diagrama de Cajas")
                 fig_box, ax_box = plt.subplots()
-                ax_box.boxplot(datos, vert=False, patch_artist=True, 
+                ax_box.boxplot(datos, vert=False, patch_artist=True, showmeans=True,
                                boxprops=dict(facecolor='#10b981', color='#059669'),
-                               medianprops=dict(color='white'))
-                ax_box.set_title(f"Box Plot de {nombre_var}")
+                               medianprops=dict(color='white'),
+                               meanprops=dict(marker='X', markerfacecolor='#f59e0b', markeredgecolor='#f59e0b', markersize=10),
+                               flierprops=dict(marker='o', markerfacecolor='none', markeredgecolor='#ef4444', markersize=9))
+                ax_box.set_title(f"Box Plot de {nombre_var} (✕ = media, ○ = atípicos)")
                 st.pyplot(fig_box)
                 plt.close(fig_box)
+
+            st.markdown("#### 📦 Diagrama de cajas y bigotes interactivo (media y valores atípicos)")
+            diagrama_cajas(datos, nombre_var, "ind_box")
 
             # 4. CONCLUSIÓN INTEGRAL CUANTITATIVA
             st.markdown("---")
@@ -1564,9 +1655,6 @@ elif categoria == "Distribuciones Probabilísticas":
     render_section_header("Distribuciones Probabilísticas", "Binomial, Poisson, Hipergeométrica, Geométrica, Normal, Exponencial, t, χ², F y más.", "📈")
     distribuciones.render_distribuciones()
 
-elif categoria == "Regresión Lineal":
-    render_section_header("Regresión Lineal", "Modelo simple y múltiple: estimación, inferencia, ANOVA, residuos y predicción.", "📉")
-    regresion.render_regresion(leer_csv_excel_cached)
 
 elif categoria == "Historial de Cálculos":
     render_section_header("Historial de Cálculos", "Registro local de cálculos realizados en esta sesión.", "📜")
