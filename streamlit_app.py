@@ -270,7 +270,7 @@ ETAPA_2 = "Juan Jesús Pantoja Cossio – Juan Manuel Paredes Betancourt – Jer
 
 def render_section_header(title, subtitle, icon="📊", show_chip=True, credito=None):
     chip_html = '<div class="section-chip">Módulo activo</div>' if show_chip else ''
-    credito_html = (f'<p style="margin: 4px 0 0 0; font-size: 0.9rem; font-weight: 600; color: #0f4c81;">{credito}: {ETAPA_2}</p>'
+    credito_html = (f'<p style="margin: 4px 0 0 0; font-size: 0.78rem; color: #94a3b8;">{credito}: {ETAPA_2}</p>'
                     if credito else '')
     st.markdown(
         f"""
@@ -476,7 +476,7 @@ categoria = st.sidebar.radio("Sección", MENU)
 st.markdown("<div class='main-title'>Solver Estadístico Unificado</div>", unsafe_allow_html=True)
 if categoria == "Inicio":
     st.markdown(
-        "<div style='border: 1px solid #c0392b; border-radius: 6px; padding: 10px 16px; margin: 8px 0 16px 0; font-size: 1.05rem; line-height: 1.6;'>"
+        "<div style='margin: 6px 0 16px 0; font-size: 0.95rem; line-height: 1.6; color: #6b7280;'>"
         "<b>Creado y actualizado por:</b><br>"
         "<b>Etapa 1:</b> Juan Canizales Lozano – Miguel Hinestroza Riascos – Joan Hinestroza Angulo<br>"
         f"<b>Etapa 2:</b> {ETAPA_2}<br>"
