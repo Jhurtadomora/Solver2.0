@@ -265,8 +265,13 @@ def plot_heatmap(matriz):
     plt.close(fig)
 
 
-def render_section_header(title, subtitle, icon="📊", show_chip=True):
+ETAPA_2 = "Juan Jesús Pantoja Cossio – Juan Manuel Paredes Betancourt – Jerónimo Hurtado Mora"
+
+
+def render_section_header(title, subtitle, icon="📊", show_chip=True, credito=None):
     chip_html = '<div class="section-chip">Módulo activo</div>' if show_chip else ''
+    credito_html = (f'<p style="margin: 4px 0 0 0; font-size: 0.9rem; font-weight: 600; color: #0f4c81;">{credito}: {ETAPA_2}</p>'
+                    if credito else '')
     st.markdown(
         f"""
         {chip_html}
@@ -274,7 +279,7 @@ def render_section_header(title, subtitle, icon="📊", show_chip=True):
             <div style="font-size: 2rem; background: rgba(56, 189, 248, 0.10); padding: 10px 14px; border-radius: 16px;">{icon}</div>
             <div>
                 <h1 style="margin: 0; font-size: 2rem; font-weight: 800;">{title}</h1>
-                <p style="margin: 0; color: #64748b;">{subtitle}</p>
+                <p style="margin: 0; color: #64748b;">{subtitle}</p>{credito_html}
             </div>
         </div>
         """,
@@ -469,6 +474,16 @@ st.sidebar.title("📊 Menú principal")
 categoria = st.sidebar.radio("Sección", MENU)
 
 st.markdown("<div class='main-title'>Solver Estadístico Unificado</div>", unsafe_allow_html=True)
+if categoria == "Inicio":
+    st.markdown(
+        "<div style='border: 1px solid #c0392b; border-radius: 6px; padding: 10px 16px; margin: 8px 0 16px 0; font-size: 1.05rem; line-height: 1.6;'>"
+        "<b>Creado y actualizado por:</b><br>"
+        "<b>Etapa 1:</b> Juan Canizales Lozano – Miguel Hinestroza Riascos – Joan Hinestroza Angulo<br>"
+        f"<b>Etapa 2:</b> {ETAPA_2}<br>"
+        "<b>Dirigido por:</b> Profesor Diego Fernando Mosquera Valencia."
+        "</div>",
+        unsafe_allow_html=True
+    )
 st.markdown(
     "<div class='sub-title'>Solver Estadístico es mucho más que una calculadora: es una herramienta de apoyo operativo diseñada para acompañar al estudiante en cada etapa del aprendizaje estadístico. Desde la organización e interpretación de datos hasta el desarrollo de análisis inferenciales, transforma procesos complejos en experiencias claras, guiadas paso a paso y fáciles de comprender.</div>",
     unsafe_allow_html=True
@@ -520,7 +535,8 @@ elif categoria == "Distribuciones de muestreo":
     render_section_header(
         "Distribuciones de muestreo",
         "Media muestral y proporción muestral con una estructura uniforme de entrada y salida.",
-        "📌"
+        "📌",
+        credito="Actualizado por"
     )
     tema = render_topic_selector(["Media muestral", "Proporción muestral", "Simulación del Teorema del Límite Central"], "tema_dist_muest")
 
@@ -642,7 +658,8 @@ elif categoria == "Intervalos de confianza":
     render_section_header(
         "Intervalos de confianza",
         "Cálculo de intervalos para media (Z/t) y proporción con lógica automática o manual.",
-        "📏"
+        "📏",
+        credito="Actualizado por"
     )
     tema = render_topic_selector(["Media (Una muestra)", "Proporción (Una muestra)"] + inferencia.TEMAS_IC_EXTRA, "tema_ic")
 
@@ -769,7 +786,8 @@ elif categoria == "Pruebas de hipótesis":
     render_section_header(
         "Pruebas de hipótesis",
         "Todas las pruebas comparten la misma estructura visual: tema, datos, tipo de prueba, cálculo y conclusión.",
-        "🧪"
+        "🧪",
+        credito="Actualizado por"
     )
     tema = render_topic_selector(["Media con Z", "Media con t", "Proporción con Z", "Diferencia de medias", "Diferencia de proporciones", "Varianza con χ²"], "tema_ph")
 
@@ -1252,7 +1270,8 @@ elif categoria == "Fórmulas":
     render_section_header(
         "Formulario completo del programa",
         "Resumen de las fórmulas usadas en todos los cálculos del sistema.",
-        "📚"
+        "📚",
+        credito="Actualizado por"
     )
 
     st.markdown("## 1. Distribuciones de muestreo")
@@ -1383,7 +1402,7 @@ elif categoria == "Fórmulas":
 # ============================================================
 
 elif categoria == "Indicadores Estadísticos":
-    render_section_header("Indicadores Estadísticos", "Tablero integral con medidas de tendencia, dispersión, forma y posición.", "🧮")
+    render_section_header("Indicadores Estadísticos", "Tablero integral con medidas de tendencia, dispersión, forma y posición.", "🧮", credito="Actualizado por")
     fuente = st.radio("Fuente de datos", ["Datos manuales", "Archivo CSV o Excel"], horizontal=True, key="ind_fuente")
 
     datos = []
@@ -1628,31 +1647,31 @@ elif categoria == "Indicadores Estadísticos":
         st.info("Se necesitan al menos 2 datos para realizar el análisis estadístico.")
 
 elif categoria == "Tabla de Frecuencias":
-    render_section_header("Tabla de Frecuencias", "Datos no agrupados, agrupados en intervalos (Sturges) y cualitativos, con gráficos e indicadores.", "📋")
+    render_section_header("Tabla de Frecuencias", "Datos no agrupados, agrupados en intervalos (Sturges) y cualitativos, con gráficos e indicadores.", "📋", credito="Creado por")
     frecuencias.render_tabla_frecuencias(leer_csv_excel_cached)
 
 elif categoria == "Probabilidad Básica":
-    render_section_header("Probabilidad Básica", "Operaciones con eventos, diagramas de Venn, tablas de contingencia y enfoque frecuentista.", "🎯")
+    render_section_header("Probabilidad Básica", "Operaciones con eventos, diagramas de Venn, tablas de contingencia y enfoque frecuentista.", "🎯", credito="Creado por")
     probabilidad.render_probabilidad()
 
 elif categoria == "Reglas de Conteo":
-    render_section_header("Reglas de Conteo", "Principio multiplicativo, permutaciones, variaciones y combinaciones con listado y árbol.", "🔢")
+    render_section_header("Reglas de Conteo", "Principio multiplicativo, permutaciones, variaciones y combinaciones con listado y árbol.", "🔢", credito="Actualizado por")
     conteo.render_conteo()
 
 elif categoria == "Árboles de Probabilidad y Bayes":
-    render_section_header("Árboles de Probabilidad y Teorema de Bayes", "Construye, grafica y demuestra: regla de la multiplicación, probabilidad total, condicional y Bayes.", "🌳")
+    render_section_header("Árboles de Probabilidad y Teorema de Bayes", "Construye, grafica y demuestra: regla de la multiplicación, probabilidad total, condicional y Bayes.", "🌳", credito="Actualizado por")
     arboles.render_arboles()
 
 elif categoria == "Variable Aleatoria":
-    render_section_header("Variable Aleatoria", "Esperanza, varianza, función de distribución y propiedades (discretas y continuas).", "🎲")
+    render_section_header("Variable Aleatoria", "Esperanza, varianza, función de distribución y propiedades (discretas y continuas).", "🎲", credito="Actualizado por")
     variables.render_variable_aleatoria()
 
 elif categoria == "Variables Aleatorias Conjuntas":
-    render_section_header("Variables Aleatorias Conjuntas Discretas", "Marginales, condicionales, covarianza, correlación e independencia.", "🧩")
+    render_section_header("Variables Aleatorias Conjuntas Discretas", "Marginales, condicionales, covarianza, correlación e independencia.", "🧩", credito="Creado por")
     variables.render_conjuntas()
 
 elif categoria == "Distribuciones Probabilísticas":
-    render_section_header("Distribuciones Probabilísticas", "Binomial, Poisson, Hipergeométrica, Geométrica, Normal, Exponencial, t, χ², F y más.", "📈")
+    render_section_header("Distribuciones Probabilísticas", "Binomial, Poisson, Hipergeométrica, Geométrica, Binomial negativa, Uniforme, Normal y Exponencial.", "📈", credito="Actualizado por")
     distribuciones.render_distribuciones()
 
 
